@@ -31,7 +31,7 @@ def process_dir(dir):
 
     json_data = json.loads(open(coco_file).read())
 
-    imgs, annotations = {}, {}
+    imgs, annotations, categories = {}, {}, {}
     images_found = []
     for image in json_data["images"]:
         imgs[image["id"]] = image["file_name"]
@@ -39,6 +39,8 @@ def process_dir(dir):
         images_found.append(image['file_name'])
     for annotation in json_data["annotations"]:
         annotations[imgs[annotation["image_id"]]] += [annotation]
+    for category in json_data["categories"]:
+        categories[category['id']] = category['name']
 
     file_path = f'{dir}/in.tsv'
 
@@ -72,7 +74,8 @@ def process_dir(dir):
         res = []
         for j in tmp:
             bbox = [int(k) for k in j['bbox']]
-            res.append(f'hwr_line:{bbox[0]},{bbox[1]},{bbox[0] + bbox[2]},{bbox[1] + bbox[3]}')
+            category = categories[j['category_id']]
+            res.append(f'{category}:{bbox[0]},{bbox[1]},{bbox[0] + bbox[2]},{bbox[1] + bbox[3]}')
         expected_result += ' '.join(res) + '\n'
 
     file = open(expected_file_path, "a")
