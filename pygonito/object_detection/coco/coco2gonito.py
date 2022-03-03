@@ -7,6 +7,7 @@ import json
 import argparse
 import hashlib
 from pathlib import Path
+import sys
 
 parser = argparse.ArgumentParser(
     description='Convert object-dection data set in the Coco format into the Gonito format')
@@ -75,6 +76,12 @@ def process_dir(dir):
         for j in tmp:
             bbox = [int(k) for k in j['bbox']]
             category = categories[j['category_id']]
+            if bbox[0] < 0 or bbox[1] < 0:
+                print(f'negative coordinate {i}!!!', file=sys.stderr)
+                if bbox[0] < 0:
+                    bbox[0] = 0
+                if bbox[1] < 0:
+                    bbox[1] = 0
             res.append(f'{category}:{bbox[0]},{bbox[1]},{bbox[0] + bbox[2]},{bbox[1] + bbox[3]}')
         expected_result += ' '.join(res) + '\n'
 
