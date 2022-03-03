@@ -9,6 +9,7 @@ if len(sys.argv) != 3:
     print('Script for visualizing bboxes in Gonito challenges', file=sys.stderr)
     print('For example, to visualize 10 first images from the train set:', file=sys.stderr)
     print('   paste train/in.tsv train/expected.tsv| head -n 10 | ./visualize-bboxes.py images out', file=sys.stderr)
+    exit(1)
 
 in_dir = sys.argv[1]
 out_dir = sys.argv[2]
