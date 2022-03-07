@@ -17,7 +17,7 @@ extra_metrics = ''
 
 if len(labels) > 0 and len(labels) < 50:
     labs = ','.join(f't<{lab}:>N<{lab}>' for lab in labels)
-    extra_metrics = ' --metric Probabilistic-Soft2D-{F1:N<F1>P<2>,F0:N<P>P<3>,F999999:N<R>P<3>}{' + labs + '}'
+    extra_metrics = ' --metric Probabilistic-Soft2D-{F1:N<F1>P<2>,F0:N<P>P<4>,F999999:N<R>P<4>}{' + labs + '}'
 
 with open(f'{in_dir}/config.txt', 'w') as config_file:
     print('--metric Probabilistic-Soft2D-F1:N<F1> --metric Probabilistic-Soft2D-F0:N<P>P<2> --metric Probabilistic-Soft2D-F999999:N<R>P<2> --precision 4 -%' + extra_metrics,
