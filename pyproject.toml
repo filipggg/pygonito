@@ -5,7 +5,10 @@ description = ""
 authors = ["Filip Graliński <filip.gralinski@applica.ai>"]
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = "^3.9"
+pandas = "^1.4.1"
+Pillow = "^9.0.1"
+
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
