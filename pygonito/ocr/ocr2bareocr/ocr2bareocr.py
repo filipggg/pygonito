@@ -36,8 +36,14 @@ def process_file(png_file, expected):
     bbox_id = 1
 
     img = Image.open(f'{in_image_dir}/{png_file}')
+    width, height = img.size
 
     for _, area, content in exp:
+        if area[2] > width:
+            area[2] = width
+        if area[3] > height:
+            area[3] = height
+
         cropped_img = img.crop(area)
         out_png = f'{out_image_dir}/{doc_id}-{bbox_id}.png'
         cropped_img.save(out_png)
