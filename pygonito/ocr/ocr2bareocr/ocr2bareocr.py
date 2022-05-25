@@ -11,7 +11,7 @@ out_image_dir = sys.argv[2]
 
 parse_ocr_re = re.compile(r'^([^:]+):(\d+),(\d+),(\d+),(\d+):(.*)$')
 
-page_limit = 20
+page_limit = 24
 
 
 def unquote(t):
