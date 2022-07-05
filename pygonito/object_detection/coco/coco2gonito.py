@@ -22,15 +22,9 @@ functions:
     * main - the main function of the script
 """
 
-from pathlib import Path
-path = Path(".")
-path = path.absolute().parent.parent.joinpath('utils')
-from path.hashutils import assign_item_to_set, hash_without_salt_on_string
-exit()
-
 import json
 import argparse
-from hashutils import assign_item_to_set, hash_without_salt_on_string
+from utils.hashutils import assign_item_to_set, hash_without_salt_on_string
 
 parser = argparse.ArgumentParser(
     description='Convert object-dection data set in the Coco format into the Gonito format')
