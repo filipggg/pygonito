@@ -112,9 +112,9 @@ def merge_annotations(filenames: "list of strings", round: bool = False) -> dict
         # file_name: [width, height, 'category:topLeftX,topLeftY,bottomRightX,bottomRightY  x N]
         for item in json_data['images']:
             if item['id'] in annotations :
-                annotations[item['file_name']] = [item['width'], item['height'], annotations.pop(item['id'])]
+                annotations[item['file_name']] = [annotations.pop(item['id'])]
             else:
-                annotations[item['file_name']] = [item['width'], item['height'], '']
+                annotations[item['file_name']] = ['']
         merged.update(annotations)
     return merged
 
@@ -146,13 +146,13 @@ def split_to_dirs(dir: str, merged: dict) -> None:
                 #extract 'BCUMCS' from 'p02_TOTBIB_BCUMCS_4010641.jpg'
                 hashable_feature = key.split('_')[2]
                 if assign_item_to_set(hashable_feature) == 'dev-0':
-                    dev_in.write(f'{key}\t{value[0]}\t{value[1]}\n')
+                    dev_in.write(f'{key}\n')
                     dev_expected.write(f'{value[-1]}\n')
                 elif assign_item_to_set(hashable_feature) == 'test-A':
-                    test_in.write(f'{key}\t{value[0]}\t{value[1]}\n')
+                    test_in.write(f'{key}\n')
                     test_expected.write(f'{value[-1]}\n')
                 elif assign_item_to_set(hashable_feature) == 'train':
-                    train_in.write(f'{key}\t{value[0]}\t{value[1]}\n')
+                    train_in.write(f'{key}\n')
                     train_expected.write(f'{value[-1]}\n')
 
 def main(path: str, coco_files: "list of strings", sort: bool = True, round: bool = False) -> None:

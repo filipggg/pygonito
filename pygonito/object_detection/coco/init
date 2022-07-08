@@ -10,10 +10,17 @@ func() {
 }
 
 func <<'EOF'
-Object localisation challenge
+Object detection challenge
 =====================================
 
-Classify objects and determine their positions on images.
+Classify objects and determine their positions on scanned first pages of newspaper images.
+
+Find bounding boxes containing given classes:
+
+Classes:
+`TYTUŁ` — title
+`PODTYTUŁ` — subtitle
+`DATA` —  date
 
 Directory structure
 -------------------
