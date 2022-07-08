@@ -115,6 +115,12 @@ def merge_annotations(filenames: "list of strings", round: bool = False) -> dict
                 annotations[item['file_name']] = [annotations.pop(item['id'])]
             else:
                 annotations[item['file_name']] = ['']
+
+        #check for duplicates
+        for item in merged.keys():
+            if item in annotations.keys():
+                print(f"Warning file was twice (or more) annotated: {item}")
+
         merged.update(annotations)
     return merged
 
