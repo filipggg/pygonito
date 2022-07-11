@@ -19,8 +19,12 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument('coco_file', metavar='COCO_JSON_FILE', type=str, nargs='+',
                     help='JSON file with annotations')
+parser.add_argument('-o', '--output', metavar='OUTPUT', type=str, nargs='?',
+                    help='run in interactive renaming mode to output rename file',
+                    const='classes_out')
 
-def find_categories(filenames: "list of strings") -> dict:
+
+def find_categories(filenames: "list of strings") -> "list of strings":
     """Find all categories of annotation classes in coco files
 
     Parameters
@@ -42,11 +46,34 @@ def find_categories(filenames: "list of strings") -> dict:
     merged.update(categories)
     return merged.keys()
 
-def main(coco_files: "list of strings") -> None:
+def rename(old_names: "list of strings") -> dict:
+    new_names = {}
+    for item in old_names:
+        name = ''
+        name = input(f'rename: {item}\n')
+        if name == '':
+            new_names[item] = item
+        else:
+            new_names[item] = name
+    return new_names
+
+def json_output(dictionary, output):
+    # json_object = json.dumps(dictionary, indent = 4)
+    with open(f"{output}.json", "w", encoding="UTF-8") as f:
+    #     f.write(json_object)
+        json.dump(dictionary, f, ensure_ascii=False, indent = 4)
+
+
+def main(coco_files: "list of strings", output: str = None) -> None:
     merged = find_categories(coco_files)
     print(*merged, sep='\n')
+    if output:
+        dict = rename(merged)
+        json_output(dict, output)
 
 if __name__ == '__main__':
     args = parser.parse_args()
     coco_files = args.coco_file
-    main(coco_files)
+    output = args.output
+    print(output)
+    main(coco_files, output)

@@ -34,6 +34,10 @@ parser.add_argument('coco_file', metavar='COCO_JSON_FILE', type=str, nargs='+',
                     help='JSON file with annotations')
 parser.add_argument('--rename', metavar='DICT_OF_NEW_CLASSES', nargs='?',
                     type=json.loads, help='string with dict of new names to rename classes')
+
+parser.add_argument('--file', metavar='FILE_WITH_NEW_CLASSES', nargs='?', type=str,
+                    const = 'classes_out.json', help='file with new names to rename classes')
+
 parser.add_argument('-s', '--sort', action='store_false',
                     help='sort inside of train/dev/test with md5 stable sort')
 parser.add_argument('-r', '--round', action='store_true',
@@ -74,17 +78,24 @@ def sorter(in_file: str, expected_file: str) -> None:
             dir_in.write(input)
             dir_expected.write(output)
 
-def merge_annotations(filenames: "list of strings", rename_dict: dict = dict(),  round: bool = False) -> dict:
+def merge_annotations(filenames: "list of strings", rename_dict: dict = dict(),
+                    rename_file: str = None, round: bool = False) -> dict:
     """Formats all annotations into gonito format and merges them into dict
+    optionally it can also rename categories of annotation classes and/or
+    round bbox coordinates
 
     Parameters
     ----------
     filenames : list of strings
         List of coco files
-    rename_dict: dict of str:str
+    rename_dict: dict of str:str, optional
         Dict for renaming categories of annotation classes
         {old_class_name: new_class_name}
-    round : bool, optional
+    rename_file: str, optional
+        filepath to .json file with output of coco2classes.py containing
+        dict for renaming categories of annotation classes
+        !this argument supress rename_dict
+    round: bool, optional
         A flag used to convert bbox coordinates into ints (default is
         False)
 
@@ -102,7 +113,8 @@ def merge_annotations(filenames: "list of strings", rename_dict: dict = dict(), 
         categories = {}
         for item in json_data['categories']:
             categories[item['id']] = item['name']
-
+        if rename_file:
+            rename_dict = json.loads(open(rename_file).read())
         if rename_dict:
             for key, value in categories.items():
                 if value in rename_dict.keys():
@@ -173,8 +185,9 @@ def split_to_dirs(dir: str, merged: dict) -> None:
                     train_in.write(f'{key}\n')
                     train_expected.write(f'{value[-1]}\n')
 
-def main(path: str, coco_files: "list of strings", rename_dict: dict = dict(), sort: bool = True, round: bool = False) -> None:
-    merged = merge_annotations(coco_files, rename_dict, round)
+def main(path: str, coco_files: "list of strings", rename_dict: dict = dict(),
+        rename_file: str = None, sort: bool = True, round: bool = False) -> None:
+    merged = merge_annotations(coco_files, rename_dict, rename_file, round)
     split_to_dirs(path, merged)
 
     if sort:
@@ -189,6 +202,8 @@ if __name__ == '__main__':
     path = args.path
     coco_files = args.coco_file
     rename_dict = args.rename
+    rename_file = args.file
     sort = args.sort
     round = args.round
-    main(path, coco_files, rename_dict, sort, round)
+    print(rename_file)
+    main(path, coco_files, rename_dict, rename_file, sort, round)
