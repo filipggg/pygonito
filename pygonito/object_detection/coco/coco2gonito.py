@@ -34,13 +34,11 @@ parser.add_argument('coco_file', metavar='COCO_JSON_FILE', type=str, nargs='+',
                     help='JSON file with annotations')
 parser.add_argument('--rename', metavar='DICT_OF_NEW_CLASSES', nargs='?',
                     type=json.loads, help='string with dict of new names to rename classes')
-
-parser.add_argument('--file', metavar='FILE_WITH_NEW_CLASSES', nargs='?', type=str,
+parser.add_argument('-f', '--file', metavar='FILE_WITH_NEW_CLASSES', nargs='?', type=str,
                     const = 'classes_out.json', help='file with new names to rename classes')
-
 parser.add_argument('-s', '--sort', action='store_false',
                     help='sort inside of train/dev/test with md5 stable sort')
-parser.add_argument('-r', '--round', action='store_true',
+parser.add_argument('-r', '--rounded', action='store_true',
                     help='convert bbox coordinates into ints')
 
 
@@ -79,10 +77,10 @@ def sorter(in_file: str, expected_file: str) -> None:
             dir_expected.write(output)
 
 def merge_annotations(filenames: "list of strings", rename_dict: dict = dict(),
-                    rename_file: str = None, round: bool = False) -> dict:
+                    rename_file: str = None, rounded: bool = False) -> dict:
     """Formats all annotations into gonito format and merges them into dict
     optionally it can also rename categories of annotation classes and/or
-    round bbox coordinates
+    rounded bbox coordinates
 
     Parameters
     ----------
@@ -95,7 +93,7 @@ def merge_annotations(filenames: "list of strings", rename_dict: dict = dict(),
         filepath to .json file with output of coco2classes.py containing
         dict for renaming categories of annotation classes
         !this argument supress rename_dict
-    round: bool, optional
+    rounded: bool, optional
         A flag used to convert bbox coordinates into ints (default is
         False)
 
@@ -120,17 +118,32 @@ def merge_annotations(filenames: "list of strings", rename_dict: dict = dict(),
                 if value in rename_dict.keys():
                     categories[key] = rename_dict[value]
 
-        # Add bbox with class_id to image_id
-        # "category": "class_id:coord,coord,coord,coord"
+        # Add coco_bbox with class_id to image_id
+        # "category": "class_id:topLeftX,topLeftY,width,height
+
+        def to_bbox(item):
+            '''topLeftX,topLeftY,width,height
+            to
+            topLeftX,topLeftY,bottomRightX,bottomRightY
+            '''
+            item = [float(x) for x in item]
+            topLeftX, topLeftY, width, height = item
+            bottomRightX = topLeftX + width
+            bottomRightY = topLeftY + height
+            return topLeftX, topLeftY, bottomRightX, bottomRightY
+
         for item in json_data['annotations']:
-            if round:
-                formated = f"{categories[item['category_id']]}:{','.join(str(int(x)) for x in item['bbox'])}"
+            if all([True if x > 0 else False for x in item['bbox']]):
+                if rounded:
+                    formated = f"{categories[item['category_id']]}:{','.join(str(round(x)) for x in to_bbox(item['bbox']))}"
+                else:
+                    formated = f"{categories[item['category_id']]}:{','.join(str(x) for x in to_bbox(item['bbox']))}"
+                if item['image_id'] in annotations :
+                    annotations[item['image_id']] = annotations.pop(item['image_id']) + ' ' + formated
+                else:
+                    annotations[item['image_id']] = formated
             else:
-                formated = f"{categories[item['category_id']]}:{','.join(str(x) for x in item['bbox'])}"
-            if item['image_id'] in annotations :
-                annotations[item['image_id']] = annotations.pop(item['image_id']) + ' ' + formated
-            else:
-                annotations[item['image_id']] = formated
+                print("Found negative coordinates, skipping")
 
         # Replace image_id with file_name, add width, height
         # file_name: [width, height, 'category:topLeftX,topLeftY,bottomRightX,bottomRightY  x N]
@@ -186,8 +199,8 @@ def split_to_dirs(dir: str, merged: dict) -> None:
                     train_expected.write(f'{value[-1]}\n')
 
 def main(path: str, coco_files: "list of strings", rename_dict: dict = dict(),
-        rename_file: str = None, sort: bool = True, round: bool = False) -> None:
-    merged = merge_annotations(coco_files, rename_dict, rename_file, round)
+        rename_file: str = None, sort: bool = True, rounded: bool = False) -> None:
+    merged = merge_annotations(coco_files, rename_dict, rename_file, rounded)
     split_to_dirs(path, merged)
 
     if sort:
@@ -204,6 +217,5 @@ if __name__ == '__main__':
     rename_dict = args.rename
     rename_file = args.file
     sort = args.sort
-    round = args.round
-    print(rename_file)
-    main(path, coco_files, rename_dict, rename_file, sort, round)
+    rounded = args.rounded
+    main(path, coco_files, rename_dict, rename_file, sort, rounded)
