@@ -1,97 +1,221 @@
 #!/usr/bin/env python3
 
-import csv
-import os
-from os.path import exists
+"""coco2gonito
+
+This script reformat coco annotations into gonito format, split them into
+train/dev/test with stable md5 split. It can also sorts data inside
+train/dev/test with stable md5 sort. It is assumed that the challenge dir has
+been initialized.
+This tool accepts coco .json files.
+
+This script requires that `pandas` be installed within the Python
+environment you are running this script in.
+
+This file can also be imported as a module and contains the following
+functions:
+
+    * sorter - sorts data inside train/dev/test with stable md5 sort
+    * merge_annotations - formats all annotations into gonito format and merges
+    them into dict
+    * split_to_dirs - splits annotation into train/dev/test with stable md5
+    split and writes them into .tsv
+    * main - the main function of the script
+"""
+
 import json
 import argparse
-import hashlib
-from pathlib import Path
-import sys
+from utils.hashutils import assign_item_to_set, hash_without_salt_on_string
 
 parser = argparse.ArgumentParser(
     description='Convert object-dection data set in the Coco format into the Gonito format')
-parser.add_argument('--coco-file', metavar='COCO_JSON_FILE', type=str, default='instances_default.json',
+parser.add_argument('path', metavar='CHALLENGE_PATH', type=str,
+                    help='path to challenge dir')
+parser.add_argument('coco_file', metavar='COCO_JSON_FILE', type=str, nargs='+',
                     help='JSON file with annotations')
-parser.add_argument('--out-test-dir', metavar='TEST_NAME', type=str,
-                    help='Output test dir (e.g. .../test-A)')
-args = parser.parse_args()
-coco_file = args.coco_file
-out_test_dir = args.out_test_dir
+parser.add_argument('--rename', metavar='DICT_OF_NEW_CLASSES', nargs='?',
+                    type=json.loads, help='string with dict of new names to rename classes')
+parser.add_argument('-f', '--file', metavar='FILE_WITH_NEW_CLASSES', nargs='?', type=str,
+                    const = 'classes_out.json', help='file with new names to rename classes')
+parser.add_argument('-s', '--sort', action='store_false',
+                    help='sort inside of train/dev/test with md5 stable sort')
+parser.add_argument('-r', '--rounded', action='store_true',
+                    help='convert bbox coordinates into ints')
 
 
-DIRECTORIES = ['train', 'dev-0', 'test-A']
+def sorter(in_file: str, expected_file: str) -> None:
+    """Sort piars of (value-from-in, value-from-expected) with stable md5 sort
+    inside in and expected file
 
+    Parameters
+    ----------
+    in_file : str
+        Input .tsv with file names like:
+        p02_TOTBIB_BCUMCS_4010641.jpg
+        if you want to use diffrent names change hashable_feature to something like datatime
+    expected_file : str
+        Expected .tsv file
 
-def get_md5(t):
-    return hashlib.md5(t.encode('utf-8')).hexdigest()
+    Returns
+    -------
+    None
+    """
+    values = []
+    with open(in_file, 'r') as dir_in, \
+         open(expected_file, 'r') as dir_expected:
+        for input, output in zip(dir_in, dir_expected):
+            values.append([input, output])
 
+    def hashable_feature(x):
+        #extract '4010641' from 'p02_TOTBIB_BCUMCS_4010641.jpg'
+        return x[0].split('\t')[0].split('_')[3].replace('.jpg', '')
+    values = sorted(values, key=lambda x: hash_without_salt_on_string(hashable_feature(x)))
 
-def process_dir(dir):
-    images = []
+    with open(in_file, 'w') as dir_in, \
+         open(expected_file, 'w') as dir_expected:
+        for input, output in values:
+            dir_in.write(input)
+            dir_expected.write(output)
 
-    json_data = json.loads(open(coco_file).read())
+def merge_annotations(filenames: "list of strings", rename_dict: dict = dict(),
+                    rename_file: str = None, rounded: bool = False) -> dict:
+    """Formats all annotations into gonito format and merges them into dict
+    optionally it can also rename categories of annotation classes and/or
+    rounded bbox coordinates
 
-    imgs, annotations, categories = {}, {}, {}
-    images_found = []
-    for image in json_data["images"]:
-        imgs[image["id"]] = image["file_name"]
-        annotations[image["file_name"]] = []
-        images_found.append(image['file_name'])
-    for annotation in json_data["annotations"]:
-        annotations[imgs[annotation["image_id"]]] += [annotation]
-    for category in json_data["categories"]:
-        categories[category['id']] = category['name']
+    Parameters
+    ----------
+    filenames : list of strings
+        List of coco files
+    rename_dict: dict of str:str, optional
+        Dict for renaming categories of annotation classes
+        {old_class_name: new_class_name}
+    rename_file: str, optional
+        filepath to .json file with output of coco2classes.py containing
+        dict for renaming categories of annotation classes
+        !this argument supress rename_dict
+    rounded: bool, optional
+        A flag used to convert bbox coordinates into ints (default is
+        False)
 
-    file_path = f'{dir}/in.tsv'
+    Returns
+    -------
+    dict
+        Dict containing all annotations in format:
+        file_name: [width, height, 'category:coord,coord,coord,coord ...']
+    """
+    merged = {}
+    for file in filenames:
+        annotations = {}
+        json_data = json.loads(open(file).read())
 
-    if out_test_dir is not None:
-        images = sorted(images_found, key=lambda n: get_md5(n))
-    else:
-        # adapt in.tsv files
-        file = open(file_path)
-        read_tsv = csv.reader(file, delimiter="\t")
-        for row in read_tsv:
-            images.append(row[0])
-        file.close()
-        os.remove(file_path)
+        categories = {}
+        for item in json_data['categories']:
+            categories[item['id']] = item['name']
+        if rename_file:
+            rename_dict = json.loads(open(rename_file).read())
+        if rename_dict:
+            for key, value in categories.items():
+                if value in rename_dict.keys():
+                    categories[key] = rename_dict[value]
 
-    Path(dir).mkdir(exist_ok=True)
-    file = open(file_path, "a")
-    file.write('\n'.join(images) + '\n')
-    file.close()
+        # Add coco_bbox with class_id to image_id
+        # "category": "class_id:topLeftX,topLeftY,width,height
 
+        def to_bbox(item):
+            '''topLeftX,topLeftY,width,height
+            to
+            topLeftX,topLeftY,bottomRightX,bottomRightY
+            '''
+            item = [float(x) for x in item]
+            topLeftX, topLeftY, width, height = item
+            bottomRightX = topLeftX + width
+            bottomRightY = topLeftY + height
+            return topLeftX, topLeftY, bottomRightX, bottomRightY
 
-    # create expected.tsv files
+        for item in json_data['annotations']:
+            if all([True if x > 0 else False for x in item['bbox']]):
+                if rounded:
+                    formated = f"{categories[item['category_id']]}:{','.join(str(round(x)) for x in to_bbox(item['bbox']))}"
+                else:
+                    formated = f"{categories[item['category_id']]}:{','.join(str(x) for x in to_bbox(item['bbox']))}"
+                if item['image_id'] in annotations :
+                    annotations[item['image_id']] = annotations.pop(item['image_id']) + ' ' + formated
+                else:
+                    annotations[item['image_id']] = formated
+            else:
+                print("Found negative coordinates, skipping")
 
-    expected_file_path = f'{dir}/expected.tsv'
+        # Replace image_id with file_name, add width, height
+        # file_name: [width, height, 'category:topLeftX,topLeftY,bottomRightX,bottomRightY  x N]
+        for item in json_data['images']:
+            if item['id'] in annotations :
+                annotations[item['file_name']] = [annotations.pop(item['id'])]
+            else:
+                annotations[item['file_name']] = ['']
 
-    if exists(expected_file_path):
-        os.remove(expected_file_path)
+        #check for duplicates
+        for item in merged.keys():
+            if item in annotations.keys():
+                print(f"Warning file was twice (or more) annotated: {item}")
 
-    expected_result = ''
-    for i in images:
-        tmp = annotations[i]
-        res = []
-        for j in tmp:
-            bbox = [int(k) for k in j['bbox']]
-            category = categories[j['category_id']]
-            if bbox[0] < 0 or bbox[1] < 0:
-                print(f'negative coordinate {i}!!!', file=sys.stderr)
-                if bbox[0] < 0:
-                    bbox[0] = 0
-                if bbox[1] < 0:
-                    bbox[1] = 0
-            res.append(f'{category}:{bbox[0]},{bbox[1]},{bbox[0] + bbox[2]},{bbox[1] + bbox[3]}')
-        expected_result += ' '.join(res) + '\n'
+        merged.update(annotations)
+    return merged
 
-    file = open(expected_file_path, "a")
-    file.write(expected_result)
-    file.close()
+def split_to_dirs(dir: str, merged: dict) -> None:
+    """Splits annotation into train/dev/test with stable md5 split and writes them into .tsv
+    in: file_name   width   height
+    expected: category1:topLeftX,topLeftY,bottomRightX,bottomRightY   categoryN:topLeftX,topLeftY,bottomRightX,bottomRightY
 
+    Parameters
+    ----------
+    dir : str
+        Drectory of initialized challenge
+    merged : dict
+        Dict containing annotations to be splited and writen in files
+        with keys like p02_TOTBIB_BCUMCS_4010641.jpg
+        if you want to use diffrent keys change hashable_feature to something else
 
-if out_test_dir is not None:
-    process_dir(out_test_dir)
-else:
-    for dir in DIRECTORIES:
-        process_dir(dir)
+    Returns
+    -------
+    None
+    """
+    with open(f'{dir}dev-0/in.tsv', 'w') as dev_in, \
+         open(f'{dir}dev-0/expected.tsv', 'w') as dev_expected, \
+         open(f'{dir}test-A/in.tsv', 'w') as test_in, \
+         open(f'{dir}test-A/expected.tsv', 'w') as test_expected, \
+         open(f'{dir}train/in.tsv', 'w') as train_in, \
+         open(f'{dir}train/expected.tsv', 'w') as train_expected:
+            for key, value in merged.items():
+                #extract 'BCUMCS' from 'p02_TOTBIB_BCUMCS_4010641.jpg'
+                hashable_feature = key.split('_')[2]
+                if assign_item_to_set(hashable_feature) == 'dev-0':
+                    dev_in.write(f'{key}\n')
+                    dev_expected.write(f'{value[-1]}\n')
+                elif assign_item_to_set(hashable_feature) == 'test-A':
+                    test_in.write(f'{key}\n')
+                    test_expected.write(f'{value[-1]}\n')
+                elif assign_item_to_set(hashable_feature) == 'train':
+                    train_in.write(f'{key}\n')
+                    train_expected.write(f'{value[-1]}\n')
+
+def main(path: str, coco_files: "list of strings", rename_dict: dict = dict(),
+        rename_file: str = None, sort: bool = True, rounded: bool = False) -> None:
+    merged = merge_annotations(coco_files, rename_dict, rename_file, rounded)
+    split_to_dirs(path, merged)
+
+    if sort:
+        files = [[f'{path}dev-0/in.tsv', f'{path}dev-0/expected.tsv'],
+                [f'{path}test-A/in.tsv', f'{path}test-A/expected.tsv'],
+                [f'{path}train/in.tsv', f'{path}train/expected.tsv']]
+        for in_file, expected_file in files:
+            sorter(in_file, expected_file)
+
+if __name__ == '__main__':
+    args = parser.parse_args()
+    path = args.path
+    coco_files = args.coco_file
+    rename_dict = args.rename
+    rename_file = args.file
+    sort = args.sort
+    rounded = args.rounded
+    main(path, coco_files, rename_dict, rename_file, sort, rounded)

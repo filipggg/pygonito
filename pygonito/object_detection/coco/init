@@ -1,0 +1,41 @@
+#!/bin/bash
+NAME=temp_name
+T=$(printf '\t')
+
+./geval --init --expected-directory $NAME --metric Accuracy --precision 2 -%
+echo "file_name$T""width$T""height" > $NAME/in-header.tsv
+echo "category1:topLeftX,topLeftY,bottomRightX,bottomRightY$T""categoryN:topLeftX,topLeftY,bottomRightX,bottomRightY" > $NAME/out-header.tsv
+func() {
+    INFO=$(cat)
+}
+
+func <<'EOF'
+Object detection challenge
+=====================================
+
+Classify objects and determine their positions on scanned first pages of newspaper images.
+
+Find bounding boxes containing given classes:
+
+Classes:
+`TYTUŁ` — title
+`PODTYTUŁ` — subtitle
+`DATA` —  date
+
+Directory structure
+-------------------
+
+* `README.md` — this file
+* `config.txt` — configuration file
+* `train/` — directory with training data
+* `train/in.tsv` — input data for the train set
+* `train/expected.tsv` — expected (reference) data for the train set
+* `dev-0/` — directory with dev (test) data
+* `dev-0/in.tsv` — input data for the dev set
+* `dev-0/expected.tsv` — expected (reference) data for the dev set
+* `test-A` — directory with test data
+* `test-A/in.tsv` — input data for the test set
+* `test-A/expected.tsv` — expected (reference) data for the test set
+EOF
+
+echo "$INFO" > $NAME/README.md

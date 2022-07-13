@@ -14,7 +14,7 @@ def assign_set(hash_str: str, testset_split: str) -> str:
     hash_modulo = hash_int % 99
     if 0 <= hash_modulo < 55:
         dataset_split = 'train'
-    elif 55 <= hash_modulo < 60:
+    elif 55 <= hash_modulo < 70:
         dataset_split = 'dev-0'
     elif testset_split is not None and testset_split[0] <= hash_modulo < testset_split[1]:
         dataset_split = 'test-A'
